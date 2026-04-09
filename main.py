@@ -1,11 +1,11 @@
-from fastapi import FastAPI, HTTPException,
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 app = FastAPI()
 
 class Item(BaseModel):
     name: str
-    description: Optional[str] = None
+    description: str | None = None
 
 items_db: dict[int, dict] = {}
 next_id: int = 1
