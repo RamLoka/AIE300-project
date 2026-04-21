@@ -125,4 +125,4 @@ Serves the frontend (index.html) via StaticFiles
 
 ## Frontend Image
 
-![alt text](assets/Screenshot 2026-04-20 232157.png)
+![alt text](assets/Screenshot.png)
