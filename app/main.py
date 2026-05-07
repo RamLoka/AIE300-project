@@ -1,3 +1,6 @@
+import torch
+import torch.nn as nn
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from typing import Optional
@@ -87,4 +90,41 @@ async def delete_item(item_id: str):
 
     return {"message": "Item deleted"}
 
+class SimpleClassifier(nn.Module):
+    def __init__(self):
+        super().__init__()
+
+        self.layer1 = nn.Linear(4, 16)
+        self.relu = nn.ReLU()
+        self.layer2 = nn.Linear(16, 3)
+
+    def forward(self, x):
+        x = self.relu(self.layer1(x))
+        x = self.layer2(x)
+        return x
+
+model = SimpleClassifier()
+model.load_state_dict(torch.load("model.pth"))
+model.eval()
+
+class PredictionRequest(BaseModel):
+    features: list[float]
+
+@app.post("/predict")
+def predict(req: PredictionRequest):
+
+    input_tensor = torch.tensor([req.features], dtype=torch.float32)
+    with torch.no_grad():
+
+        outputs = model(input_tensor)
+        probabilities = torch.softmax(outputs, dim=1)
+        confidence, predicted = torch.max(probabilities, 1)
+
+    class_names = ["setosa", "versicolor", "virginica"]
+
+    return {
+        "prediction": class_names[predicted.item()],
+        "confidence": float(confidence.item())
+    }
+    
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

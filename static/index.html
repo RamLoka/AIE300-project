@@ -21,6 +21,17 @@
     <h3>Items</h3>
     <div id="items"></div>
 
+    <h3>Iris Prediction</h3>
+    
+    <input id="f1" placeholder="Sepal Length">
+    <input id="f2" placeholder="Sepal Width">
+    <input id="f3" placeholder="Petal Length">
+    <input id="f4" placeholder="Petal Width">
+
+<button onclick="predict()">Predict</button>
+
+<p id="result"></p>
+
 <script>
 const API = "http://localhost:8000";
 
@@ -74,6 +85,29 @@ async function editItem(id) {
     });
 
     loadItems();
+}
+
+async function predict() {
+
+    const features = [
+        parseFloat(document.getElementById("f1").value),
+        parseFloat(document.getElementById("f2").value),
+        parseFloat(document.getElementById("f3").value),
+        parseFloat(document.getElementById("f4").value)
+    ];
+
+    const response = await fetch(`${API}/predict`, {
+        method: "POST",
+        headers: {
+            "Content-Type": "application/json"
+        },
+        body: JSON.stringify({ features })
+    });
+
+    const data = await response.json();
+
+    document.getElementById("result").innerText =
+        `Prediction: ${data.prediction}, Confidence: ${data.confidence}`;
 }
 
 loadItems();

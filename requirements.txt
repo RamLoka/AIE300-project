@@ -2,3 +2,5 @@ fastapi
 pydantic
 uvicorn
 motor
+scikit-learn
+torch

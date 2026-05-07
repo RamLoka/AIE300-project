@@ -119,6 +119,20 @@ Update an existing item
 - DELETE /items/{item_id}
 Delete an item by ID
 
+# Feature Prediction
+POST /predict
+
+Request Body:
+{
+  "features": [5.1, 3.5, 1.4, 0.2]
+}
+
+Response:
+{
+  "prediction": "setosa",
+  "confidence": 0.98
+}
+
 # Frontend (Static)
 - GET /
 Serves the frontend (index.html) via StaticFiles
@@ -126,3 +140,7 @@ Serves the frontend (index.html) via StaticFiles
 ## Frontend Image
 
 ![alt text](assets/Screenshot 2026-04-20 232157.png)
+
+## Prediction Screenshot (Swagger UI)
+
+![alt text](assets/Screenshot 2026-05-06 202340.png)
