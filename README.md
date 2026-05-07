@@ -144,7 +144,7 @@ Serves the frontend (index.html) via StaticFiles
 
 ## Prediction Screenshot (Swagger UI)
 
-![alt text](assets/Screenshot 2026-05-06 202340.png)
+![alt text](assets/Screenshot2.png)
 =======
 ![alt text](assets/Screenshot.png)
 >>>>>>> 070b0caea407dfa943bcee2c1123f15010708fa8
