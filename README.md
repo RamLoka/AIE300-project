@@ -138,13 +138,9 @@ Response:
 Serves the frontend (index.html) via StaticFiles
 
 ## Frontend Image
-
-<<<<<<< HEAD
-![alt text](assets/Screenshot 2026-04-20 232157.png)
-
+![alt text](assets/Screenshot.png)
+>>>>>>> 070b0caea407dfa943bcee2c1123f15010708fa8
 ## Prediction Screenshot (Swagger UI)
 
 ![alt text](assets/Screenshot2.png)
 =======
-![alt text](assets/Screenshot.png)
->>>>>>> 070b0caea407dfa943bcee2c1123f15010708fa8
