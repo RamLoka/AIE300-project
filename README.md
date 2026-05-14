@@ -149,3 +149,20 @@ Serves the frontend (index.html) via StaticFiles
 Model image pulled: ai/smollm2
 Endpoint exposed: http://localhost:12434/engines/v1/chat/completions
 Response: Docker is a tool that allows you to run multiple isolated applications and containers on a single machine.
+
+## Architecture Diagram
+
+Client
+   │
+Frontend (static UI)
+   │
+API Service (:8000)
+   │   ├── /predict (proxies request)
+   │   └── /health (API status)
+   │
+Model Service (:8001)
+   │   ├── /predict (runs PyTorch model)
+   │   └── /health (model status)
+   │
+Prediction Response
+

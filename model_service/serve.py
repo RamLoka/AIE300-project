@@ -5,7 +5,6 @@ import numpy as np
 
 app = FastAPI()
 
-
 class SimpleClassifier(nn.Module):
     def __init__(self):
         super().__init__()
@@ -18,16 +17,18 @@ class SimpleClassifier(nn.Module):
         x = self.layer2(x)
         return x
 
+model = None
 
-model = SimpleClassifier()
-model.load_state_dict(torch.load("model.pth", map_location="cpu"))
-model.eval()
-
+@app.on_event("startup")
+def load_model():
+    global model
+    model = SimpleClassifier()
+    model.load_state_dict(torch.load("model.pth", map_location="cpu"))
+    model.eval()
 
 @app.get("/health")
 def health():
     return {"status": "ok", "model_loaded": True}
-
 
 @app.post("/predict")
 def predict(data: dict):
