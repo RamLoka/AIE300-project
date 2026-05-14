@@ -143,3 +143,9 @@ Serves the frontend (index.html) via StaticFiles
 ## Prediction Screenshot (Swagger UI)
 
 ![alt text](assets/Screenshot2.png)
+
+## Docker Model Runner Part 1:
+
+Model image pulled: ai/smollm2
+Endpoint exposed: http://localhost:12434/engines/v1/chat/completions
+Response: Docker is a tool that allows you to run multiple isolated applications and containers on a single machine.

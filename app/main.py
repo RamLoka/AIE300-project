@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import requests
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -11,6 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from bson import ObjectId
 
 app = FastAPI()
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -22,6 +24,14 @@ app.add_middleware(
 @app.get("/api")
 def root():
     return {"message": "API is running"}
+
+@app.post("/predict")
+def predict(data: dict):
+    response = requests.post(
+        "http://model-service:8001/predict",
+        json={"features": data["features"]}
+    )
+    return response.json()
 
 class Item(BaseModel):
     name: str
@@ -37,9 +47,7 @@ def item_helper(item) -> dict:
 @app.post("/items", status_code=201)
 async def create_item(item: Item):
     result = await items_collection.insert_one(item.model_dump())
-
     new_item = await items_collection.find_one({"_id": result.inserted_id})
-
     return item_helper(new_item)
 
 @app.get("/items")
@@ -75,7 +83,6 @@ async def update_item(item_id: str, item: Item):
         raise HTTPException(status_code=404, detail="Item not found")
 
     updated = await items_collection.find_one({"_id": ObjectId(item_id)})
-
     return item_helper(updated)
 
 @app.delete("/items/{item_id}")
@@ -90,41 +97,4 @@ async def delete_item(item_id: str):
 
     return {"message": "Item deleted"}
 
-class SimpleClassifier(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-        self.layer1 = nn.Linear(4, 16)
-        self.relu = nn.ReLU()
-        self.layer2 = nn.Linear(16, 3)
-
-    def forward(self, x):
-        x = self.relu(self.layer1(x))
-        x = self.layer2(x)
-        return x
-
-model = SimpleClassifier()
-model.load_state_dict(torch.load("model.pth"))
-model.eval()
-
-class PredictionRequest(BaseModel):
-    features: list[float]
-
-@app.post("/predict")
-def predict(req: PredictionRequest):
-
-    input_tensor = torch.tensor([req.features], dtype=torch.float32)
-    with torch.no_grad():
-
-        outputs = model(input_tensor)
-        probabilities = torch.softmax(outputs, dim=1)
-        confidence, predicted = torch.max(probabilities, 1)
-
-    class_names = ["setosa", "versicolor", "virginica"]
-
-    return {
-        "prediction": class_names[predicted.item()],
-        "confidence": float(confidence.item())
-    }
-    
 app.mount("/", StaticFiles(directory="static", html=True), name="static")

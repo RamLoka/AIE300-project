@@ -1,6 +1,7 @@
 version: "3.9"
 
 services:
+
   api:
     build: .
     ports:
@@ -9,6 +10,17 @@ services:
       - DATABASE_URL=mongodb://mongo:27017/itemsdb
     depends_on:
       - mongo
+      - model-service
+
+  model-service:
+    build: ./model_service
+    ports:
+      - "8001:8001"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
 
   mongo:
     image: mongo:latest
