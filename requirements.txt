@@ -6,3 +6,5 @@ scikit-learn
 torch
 numpy
 requests
+openai
+python-dotenv

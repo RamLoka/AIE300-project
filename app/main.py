@@ -1,8 +1,9 @@
+from openai import OpenAI
 import requests
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
-from typing import Optional
+from typing import List, Optional
 
 from app.database import collection as items_collection
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,6 +19,71 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+client = OpenAI(
+    base_url="http://localhost:11434/v1",
+    api_key="ollama"
+)
+
+class ChatRequest(BaseModel):
+    message: str
+    conversation_history: List[dict] = []
+    
+class ChatResponse(BaseModel):
+    reply: str
+    conversation_history: List[dict]
+    
+@app.post("/chat", response_model=ChatResponse)
+def chat(request: ChatRequest):
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are a helpful AI assistant for a student project app. "
+                "Be concise, clear, and helpful."
+            )
+        }
+    ]
+
+    messages.extend(request.conversation_history)
+
+    messages.append({
+        "role": "user",
+        "content": request.message
+    })
+
+    try:
+        response = client.chat.completions.create(
+            model="llama3",
+            messages=messages,
+            max_tokens=512,
+            temperature=0.7
+        )
+
+        reply = response.choices[0].message.content
+
+        updated_history = request.conversation_history + [
+            {
+                "role": "user",
+                "content": request.message
+            },
+            {
+                "role": "assistant",
+                "content": reply
+            }
+        ]
+
+        return ChatResponse(
+            reply=reply,
+            conversation_history=updated_history
+        )
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Chat error: {str(e)}"
+        )    
 
 @app.get("/api")
 def root():
