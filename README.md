@@ -166,3 +166,55 @@ Model Service (:8001)
    │
 Prediction Response
 
+## Prompt Engineering & Structured Output
+
+# What system message do you use? Why?
+
+You are an item analysis assistant.
+
+Analyze provided item description and respond with valid JSON in this exact format: 
+{ "categories": ["category1", "category2"], "tags": ["tag1", "tag2", "tag3"], 
+"sentiment": "positive" | "negative" | "neutral", "summary": "one sentence summary"
+
+Rules:
+- Return ONLY valid JSON 
+- No markdown 
+- No explanations 
+- No extra text
+
+## What few-shot examples do you include?
+
+Example: Input: "This gaming laptop is extremely fast, lightweight, and has amazing battery life." Output: 
+{ "categories": ["technology", "electronics"], "tags": ["gaming", "laptop", "battery", "performance"], 
+"sentiment": "positive", "summary": "Positive review of a high-performance gaming laptop." }
+
+## What structured format do you expect?
+
+The endpoint expects the model to return valid JSON in this format:
+
+{
+    "categories": ["category1", "category2"],
+    "tags": ["tag1", "tag2", "tag3"],
+    "sentiment": "positive",
+    "summary": "one sentence summary"
+}
+
+Required fields:
+
+categories
+tags
+sentiment
+summary
+
+## How do you handle failures?
+
+The model output is validated using json.loads().
+
+If invalid json is returned:
+
+1. The application extracts the JSON object from the response text
+2. A retry request is sent asking the model to return ONLY valid JSON
+3. The retry uses a lower temperature for more consistent output
+4. If parsing still fails, the API returns HTTP 422 with an error message
+
+All required fields are verified before returning response

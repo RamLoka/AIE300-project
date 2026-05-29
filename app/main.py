@@ -1,5 +1,5 @@
 from openai import OpenAI
-import requests
+import requests, json
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
@@ -28,11 +28,14 @@ client = OpenAI(
 class ChatRequest(BaseModel):
     message: str
     conversation_history: List[dict] = []
-    
+
 class ChatResponse(BaseModel):
     reply: str
     conversation_history: List[dict]
-    
+
+class AnalyzeRequest(BaseModel):
+    content: str
+
 @app.post("/chat", response_model=ChatResponse)
 def chat(request: ChatRequest):
 
@@ -54,6 +57,7 @@ def chat(request: ChatRequest):
     })
 
     try:
+
         response = client.chat.completions.create(
             model="llama3",
             messages=messages,
@@ -80,10 +84,146 @@ def chat(request: ChatRequest):
         )
 
     except Exception as e:
+
         raise HTTPException(
             status_code=500,
             detail=f"Chat error: {str(e)}"
-        )    
+        )
+
+@app.post("/analyze")
+def analyze(request: AnalyzeRequest):
+
+    system_prompt = """
+You are an item analysis assistant.
+
+Analyze the provided item description and respond with ONLY valid JSON
+in this exact format:
+
+{
+    "categories": ["category1", "category2"],
+    "tags": ["tag1", "tag2", "tag3"],
+    "sentiment": "positive" | "negative" | "neutral",
+    "summary": "one sentence summary"
+}
+
+Rules:
+- Return ONLY valid JSON
+- No markdown
+- No explanations
+- No extra text
+"""
+
+    few_shot = """
+Example:
+
+Input:
+"This gaming laptop is extremely fast, lightweight, and has amazing battery life."
+
+Output:
+{
+    "categories": ["technology", "electronics"],
+    "tags": ["gaming", "laptop", "battery", "performance"],
+    "sentiment": "positive",
+    "summary": "Positive review of a high-performance gaming laptop."
+}
+"""
+
+    messages = [
+        {
+            "role": "system",
+            "content": system_prompt
+        },
+        {
+            "role": "user",
+            "content":
+                few_shot +
+                "\n\nNow analyze this:\n" +
+                request.content
+        }
+    ]
+
+    try:
+
+        response = client.chat.completions.create(
+            model="llama3",
+            messages=messages,
+            max_tokens=512,
+            temperature=0.2
+        )
+
+        raw = response.choices[0].message.content.strip()
+
+        start = raw.find("{")
+        end = raw.rfind("}") + 1
+
+        if start != -1 and end != -1:
+            raw = raw[start:end]
+
+        try:
+
+            result = json.loads(raw)
+
+        except json.JSONDecodeError:
+
+            retry_messages = messages + [
+                {
+                    "role": "assistant",
+                    "content": raw
+                },
+                {
+                    "role": "user",
+                    "content":
+                        "Return ONLY valid JSON."
+                }
+            ]
+
+            retry_response = client.chat.completions.create(
+                model="llama3",
+                messages=retry_messages,
+                max_tokens=512,
+                temperature=0.1
+            )
+
+            raw = retry_response.choices[0].message.content.strip()
+
+            start = raw.find("{")
+            end = raw.rfind("}") + 1
+
+            if start != -1 and end != -1:
+                raw = raw[start:end]
+
+            result = json.loads(raw)
+
+        required = [
+            "categories",
+            "tags",
+            "sentiment",
+            "summary"
+        ]
+
+        for field in required:
+
+            if field not in result:
+
+                raise ValueError(
+                    f"Missing field: {field}"
+                )
+
+        return result
+
+    except json.JSONDecodeError:
+
+        raise HTTPException(
+            status_code=422,
+            detail="LLM returned invalid JSON."
+        )
+
+    except Exception as e:
+
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
 
 @app.get("/api")
 def root():
@@ -91,10 +231,12 @@ def root():
 
 @app.post("/predict")
 def predict(data: dict):
+
     response = requests.post(
         "http://model-service:8001/predict",
         json={"features": data["features"]}
     )
+
     return response.json()
 
 class Item(BaseModel):
@@ -102,6 +244,7 @@ class Item(BaseModel):
     description: Optional[str] = None
 
 def item_helper(item) -> dict:
+
     return {
         "id": str(item["_id"]),
         "name": item["name"],
@@ -110,54 +253,104 @@ def item_helper(item) -> dict:
 
 @app.post("/items", status_code=201)
 async def create_item(item: Item):
-    result = await items_collection.insert_one(item.model_dump())
-    new_item = await items_collection.find_one({"_id": result.inserted_id})
+
+    result = await items_collection.insert_one(
+        item.model_dump()
+    )
+
+    new_item = await items_collection.find_one(
+        {"_id": result.inserted_id}
+    )
+
     return item_helper(new_item)
 
 @app.get("/items")
 async def get_items():
+
     items = []
+
     async for item in items_collection.find():
         items.append(item_helper(item))
+
     return items
 
 @app.get("/items/{item_id}")
 async def get_item(item_id: str):
+
     try:
-        item = await items_collection.find_one({"_id": ObjectId(item_id)})
+
+        item = await items_collection.find_one(
+            {"_id": ObjectId(item_id)}
+        )
+
     except:
-        raise HTTPException(status_code=400, detail="Invalid ID format")
+
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid ID format"
+        )
 
     if not item:
-        raise HTTPException(status_code=404, detail="Item not found")
+
+        raise HTTPException(
+            status_code=404,
+            detail="Item not found"
+        )
 
     return item_helper(item)
 
 @app.put("/items/{item_id}")
 async def update_item(item_id: str, item: Item):
+
     try:
+
         result = await items_collection.update_one(
             {"_id": ObjectId(item_id)},
             {"$set": item.model_dump()}
         )
+
     except:
-        raise HTTPException(status_code=400, detail="Invalid ID format")
+
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid ID format"
+        )
 
     if result.matched_count == 0:
-        raise HTTPException(status_code=404, detail="Item not found")
 
-    updated = await items_collection.find_one({"_id": ObjectId(item_id)})
+        raise HTTPException(
+            status_code=404,
+            detail="Item not found"
+        )
+
+    updated = await items_collection.find_one(
+        {"_id": ObjectId(item_id)}
+    )
+
     return item_helper(updated)
 
 @app.delete("/items/{item_id}")
 async def delete_item(item_id: str):
+
     try:
-        result = await items_collection.delete_one({"_id": ObjectId(item_id)})
+
+        result = await items_collection.delete_one(
+            {"_id": ObjectId(item_id)}
+        )
+
     except:
-        raise HTTPException(status_code=400, detail="Invalid ID format")
+
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid ID format"
+        )
 
     if result.deleted_count == 0:
-        raise HTTPException(status_code=404, detail="Item not found")
+
+        raise HTTPException(
+            status_code=404,
+            detail="Item not found"
+        )
 
     return {"message": "Item deleted"}
 
